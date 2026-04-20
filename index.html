@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/metricinsights.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slideshow — Metric Insights</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.PP_VARIABLES = {
+        // Default time each page is displayed, in seconds.
+        // Users can still override this at runtime via the top-bar dropdown.
+        PAGE_DURATION_SECONDS: '[Slide Duration]',
+        FOLDERS: '[Folders]',
+        // Brand colors (any valid CSS color). Leave the template literals in
+        // place so MI substitutes per-customer values; falls back to the
+        // Metric Insights defaults when unset.
+        PRIMARY_COLOR: '[Primary Color]',
+        ACCENT_COLOR: '[Accent Color]'
+      };
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

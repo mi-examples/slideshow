@@ -1,0 +1,49 @@
+{
+  "name": "slideshow",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.12",
+    "brace-expansion": "^5.0.5",
+    "minimatch": "^10.2.2",
+    "flatted": "^3.4.2",
+    "undici": "^7.24.0",
+    "picomatch": "^4.0.4"
+  },
+  "scripts": {
+    "dev": "pp-dev",
+    "build": "tsc && pp-dev build",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "preview": "pp-dev preview"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "powerbi-client": "^2.23.10",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@eslint/compat": "^2.0.3",
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.0",
+    "@metricinsights/pp-dev": "^0.17.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "@vitejs/plugin-react": "^5.1.4",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.1",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
