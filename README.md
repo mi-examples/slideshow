@@ -23,6 +23,10 @@ A React-based MI Custom App built on `pp-dev`. It embeds Power BI via Microsoft'
 | `GET /api/element_info?element=<id>` | Returns the element's `external_report_url`, which is parsed for `groupId` / `reportId` / `dashboardId` / `tileId`. |
 | `GET /data/service/intermediate-page/token?per_user=Y&element_id=<id>` | Returns the AAD access token used by the Power BI SDK (`tokenType: Aad`). |
 
+> **Internal endpoint note.** `intermediate-page/token` is an internal MI endpoint — it's what MI's own `ExternalReportViewer` uses server-side, but it isn't covered by the public REST API stability guarantees. We use it because there's no public equivalent today for obtaining an embed-ready AAD token. Treat it as subject to change across MI major versions.
+
+Every 45 minutes the app re-calls this endpoint and hands the fresh token to `embedded.setAccessToken()`. AAD tokens are ~60 min, so 45 minutes leaves comfortable headroom. This is what keeps a 24/7 wall display from going stale after ~1 hour.
+
 Relevant MI documentation:
 
 - [Folder API](https://help.metricinsights.com/m/API_Access/l/1735182-folder-api)
@@ -41,6 +45,20 @@ You need:
 1. A Metric Insights instance with working Power BI plugin connection(s).
 2. One or more **Folders** containing the **Power BI External Reports** you want to display, in the desired order.
 3. App Template Variables configured on the portal page (see below).
+
+### Kiosk deployments (TV / wall display)
+
+Because every API call relies on the viewer's MI session cookie, **a kiosk browser must stay logged in** for the slideshow to keep working. When the MI session expires (tenant-configured; typically 8–24h) all three backing endpoints start returning 401 and the slideshow will surface embed errors. Options:
+
+- Run the kiosk under a dedicated service account with a long session lifetime.
+- Use MI's SSO / session-persistence settings to extend the session.
+- Put the kiosk behind a reverse proxy that handles re-auth silently.
+
+### Embed resilience
+
+- **Token refresh:** handled automatically via the Power BI SDK's `tokenExpired` event.
+- **Failure recovery:** if a slide fails to embed or hangs, an internal watchdog force-advances to the next slide after `3 × PAGE_DURATION_SECONDS` (bounded 20–60s) so the display doesn't freeze.
+- **Unsupported tools:** folders containing non–Power BI External Reports (Tableau, Qlik, etc.) render a brief "Unsupported report" slide and skip forward; they do not stop the slideshow.
 
 ## Configuration — App Template Variables
 

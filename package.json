@@ -15,6 +15,8 @@
     "dev": "pp-dev",
     "build": "tsc && pp-dev build",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "pp-dev preview"
   },
   "engines": {
@@ -44,6 +46,7 @@
     "globals": "^17.4.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.4"
   }
 }

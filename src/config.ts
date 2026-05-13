@@ -18,7 +18,11 @@ function isUnsubstitutedTemplate(s: string): boolean {
   return s.startsWith('[') && s.endsWith(']');
 }
 
-function parseSeconds(raw: unknown): number | null {
+/**
+ * Parses a duration in seconds from a PP_VARIABLES value. Returns null when
+ * the value is missing, unsubstituted, non-numeric, or below 1 second.
+ */
+export function parseSeconds(raw: unknown): number | null {
   if (typeof raw === 'number') {
     return Number.isFinite(raw) && raw >= 1 ? raw : null;
   }
@@ -36,17 +40,15 @@ function parseSeconds(raw: unknown): number | null {
   return null;
 }
 
-export function getInitialPageDurationSeconds(): number {
-  return parseSeconds(PP_VARIABLES.PAGE_DURATION_SECONDS) ?? DEFAULT_PAGE_DURATION_SECONDS;
-}
-
 /**
- * Returns the configured folder ids (from PP_VARIABLES.FOLDERS), or null
- * when unconfigured — in which case the app falls back to the folder picker.
+ * Parses a folder id list from a PP_VARIABLES value. Accepts:
+ *   number                     → ["42"]
+ *   "42"                       → ["42"]
+ *   "42,17,9"                  → ["42","17","9"]
+ *   [42, 17, "9"]              → ["42","17","9"]
+ *   null / "" / "[Folders]"    → null (unset)
  */
-export function getConfiguredFolderIds(): string[] | null {
-  const raw = PP_VARIABLES.FOLDERS;
-
+export function parseFolderIds(raw: unknown): string[] | null {
   if (raw === undefined || raw === null) {
     return null;
   }
@@ -66,4 +68,16 @@ export function getConfiguredFolderIds(): string[] | null {
   }
 
   return parts.length > 0 ? parts : null;
+}
+
+export function getInitialPageDurationSeconds(): number {
+  return parseSeconds(PP_VARIABLES.PAGE_DURATION_SECONDS) ?? DEFAULT_PAGE_DURATION_SECONDS;
+}
+
+/**
+ * Returns the configured folder ids (from PP_VARIABLES.FOLDERS), or null
+ * when unconfigured — in which case the app falls back to the folder picker.
+ */
+export function getConfiguredFolderIds(): string[] | null {
+  return parseFolderIds(PP_VARIABLES.FOLDERS);
 }

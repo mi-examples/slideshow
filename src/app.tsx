@@ -10,6 +10,12 @@ export default function App() {
   const configuredFolderIds = useMemo(() => getConfiguredFolderIds(), []);
   const theme = useMemo(() => getTheme(), []);
   const [pickedFolder, setPickedFolder] = useState<Folder | null>(null);
+  // Stable array reference per picked-folder id so Slideshow's effect doesn't
+  // re-fetch on unrelated App re-renders.
+  const pickedFolderIds = useMemo<string[] | null>(
+    () => (pickedFolder ? [pickedFolder.id] : null),
+    [pickedFolder],
+  );
 
   const themeStyle: CSSProperties = {
     ['--theme-primary' as string]: theme.primary,
@@ -26,10 +32,10 @@ export default function App() {
         onChangeFolder={null}
       />
     );
-  } else if (pickedFolder) {
+  } else if (pickedFolder && pickedFolderIds) {
     content = (
       <Slideshow
-        folderIds={[pickedFolder.id]}
+        folderIds={pickedFolderIds}
         label={pickedFolder.name}
         onChangeFolder={() => setPickedFolder(null)}
       />

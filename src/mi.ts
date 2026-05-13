@@ -133,6 +133,18 @@ function buildEmbedInfo(parsed: ParsedPowerBiUrl, accessToken: string): EmbedInf
   };
 }
 
+async function fetchAccessToken(elementId: string): Promise<string> {
+  const res = await apiGet<TokenResponse>(
+    `/data/service/intermediate-page/token?per_user=Y&element_id=${encodeURIComponent(elementId)}`,
+  );
+
+  if (!res.access_token) {
+    throw new Error(`Element ${elementId}: access token missing from intermediate-page/token response.`);
+  }
+
+  return res.access_token;
+}
+
 export const MI = {
   async listReportsInFolder(folderId: string): Promise<Report[]> {
     const data = await apiGet<FolderElementResponse>(
@@ -162,11 +174,9 @@ export const MI = {
    * and an AAD access token (per-user).
    */
   async getEmbedInfo(elementId: string): Promise<EmbedInfo> {
-    const [infoRes, tokenRes] = await Promise.all([
+    const [infoRes, accessToken] = await Promise.all([
       apiGet<ElementInfoResponse>(`/api/element_info?element=${encodeURIComponent(elementId)}`),
-      apiGet<TokenResponse>(
-        `/data/service/intermediate-page/token?per_user=Y&element_id=${encodeURIComponent(elementId)}`,
-      ),
+      fetchAccessToken(elementId),
     ]);
 
     const info = Array.isArray(infoRes.info) ? infoRes.info[0] : infoRes.info;
@@ -178,13 +188,34 @@ export const MI = {
     const parsed = parsePowerBiUrl(info.external_report_url);
 
     if (!parsed) {
-      throw new Error(`Element ${elementId}: could not parse external_report_url "${info.external_report_url}".`);
+      throw new UnsupportedBiToolError(elementId, info.external_report_url);
     }
 
-    if (!tokenRes.access_token) {
-      throw new Error(`Element ${elementId}: access token missing from intermediate-page/token response.`);
-    }
+    return buildEmbedInfo(parsed, accessToken);
+  },
 
-    return buildEmbedInfo(parsed, tokenRes.access_token);
+  /**
+   * Refresh just the AAD access token. Called from the Power BI SDK's
+   * `tokenExpired` event so a long-running slideshow doesn't die after ~1h.
+   */
+  async getAccessToken(elementId: string): Promise<string> {
+    return fetchAccessToken(elementId);
   },
 };
+
+/**
+ * Raised when element_info returns a URL we can't recognize (e.g. Tableau,
+ * Qlik, etc.). Distinct from generic errors so the UI can render a dedicated
+ * "unsupported" slide instead of a raw failure message.
+ */
+export class UnsupportedBiToolError extends Error {
+  readonly elementId: string;
+  readonly url: string;
+
+  constructor(elementId: string, url: string) {
+    super(`Element ${elementId}: "${url}" is not a Power BI report, dashboard, or tile.`);
+    this.name = 'UnsupportedBiToolError';
+    this.elementId = elementId;
+    this.url = url;
+  }
+}

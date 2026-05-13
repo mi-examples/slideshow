@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MI } from '../../mi';
+import { MI, UnsupportedBiToolError } from '../../mi';
 import { getInitialPageDurationSeconds, PAGE_DURATION_OPTIONS } from '../../config';
 import type { Report } from '../../types';
 import ReportEmbed, { type PageRef } from './report-embed';
@@ -36,7 +36,7 @@ export default function Slideshow({ folderIds, label, onChangeFolder }: Slidesho
     reportId: string;
     pages: PageRef[];
     pageIndex: number;
-    error: string | null;
+    error: Error | null;
   }>({ reportId: '', pages: [], pageIndex: 0, error: null });
   const [barVisible, setBarVisible] = useState(true);
   const [autoPlay, setAutoPlay] = useState(true);
@@ -44,6 +44,7 @@ export default function Slideshow({ folderIds, label, onChangeFolder }: Slidesho
 
   const hideTimer = useRef<number | null>(null);
   const autoTimer = useRef<number | null>(null);
+  const watchdogTimer = useRef<number | null>(null);
 
   const sourceKey = folderIdsKey(folderIds);
   const loading = loadedKey !== sourceKey;
@@ -159,6 +160,42 @@ export default function Slideshow({ folderIds, label, onChangeFolder }: Slidesho
     };
   }, [autoPlay, pages.length, reports.length, next, pageDurationSeconds]);
 
+  // Watchdog: if the current slide has an embed error OR pages never arrive,
+  // force-advance so an unattended display isn't stuck forever. Only active
+  // when autoplay is on and there's more than one report to move to.
+  useEffect(() => {
+    if (watchdogTimer.current) {
+      window.clearTimeout(watchdogTimer.current);
+      watchdogTimer.current = null;
+    }
+
+    if (!autoPlay || reports.length <= 1) {
+      return;
+    }
+
+    const stuck = pages.length === 0;
+    const errored = embedError !== null;
+
+    if (!stuck && !errored) {
+      return;
+    }
+
+    // Give the embed up to 3× the per-page duration (min 20s, max 60s) to
+    // recover before we force-advance.
+    const timeoutMs = Math.min(Math.max(pageDurationSeconds * 3 * 1000, 20_000), 60_000);
+
+    watchdogTimer.current = window.setTimeout(() => {
+      next();
+    }, timeoutMs);
+
+    return () => {
+      if (watchdogTimer.current) {
+        window.clearTimeout(watchdogTimer.current);
+        watchdogTimer.current = null;
+      }
+    };
+  }, [autoPlay, reports.length, pages.length, embedError, pageDurationSeconds, reportIndex, next]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -210,7 +247,7 @@ export default function Slideshow({ folderIds, label, onChangeFolder }: Slidesho
       setReportState((s) => ({
         ...s,
         reportId: currentReportId,
-        error: err.message,
+        error: err,
       }));
     },
     [currentReportId],
@@ -330,8 +367,19 @@ export default function Slideshow({ folderIds, label, onChangeFolder }: Slidesho
         />
         {embedError && (
           <div className={styles.errorOverlay}>
-            <div className={styles.errorTitle}>Embed error</div>
-            <div className={styles.errorBody}>{embedError}</div>
+            {embedError instanceof UnsupportedBiToolError ? (
+              <>
+                <div className={styles.errorTitle}>Unsupported report</div>
+                <div className={styles.errorBody}>
+                  {currentReport.name} isn&apos;t a Power BI report, dashboard, or tile — skipping.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.errorTitle}>Embed error</div>
+                <div className={styles.errorBody}>{embedError.message}</div>
+              </>
+            )}
             <button type="button" onClick={next} className={styles.emptyButton}>
               Skip to next
             </button>

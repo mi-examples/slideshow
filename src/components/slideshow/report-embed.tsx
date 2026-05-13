@@ -23,6 +23,10 @@ const powerbi = new pbi.service.Service(
   pbi.factories.routerFactory,
 );
 
+// AAD access tokens are ~60 min. Refresh comfortably ahead of expiry so a
+// 24/7 wall display doesn't get stuck on a single long-lived report.
+const TOKEN_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+
 export default function ReportEmbed({ report, pageName, onPagesReady, onError }: ReportEmbedProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const embeddedRef = useRef<pbi.Embed | null>(null);
@@ -48,6 +52,7 @@ export default function ReportEmbed({ report, pageName, onPagesReady, onError }:
     }
 
     let cancelled = false;
+    let refreshTimer: number | null = null;
 
     (async () => {
       try {
@@ -134,6 +139,28 @@ export default function ReportEmbed({ report, pageName, onPagesReady, onError }:
         embedded.on('error', (event: pbi.service.ICustomEvent<unknown>) => {
           onErrorRef.current(new Error(String(event?.detail ?? 'Power BI embed error')));
         });
+
+        // Periodic token refresh — keeps a long-lived embed from dying when
+        // the AAD token expires (~60 min). We prefer an interval over the
+        // SDK's `tokenExpired` event because the event doesn't exist on
+        // every embed type in the current powerbi-client release.
+        refreshTimer = window.setInterval(() => {
+          if (cancelled) {
+            return;
+          }
+
+          MI.getAccessToken(report.id)
+            .then((fresh) => {
+              if (cancelled) {
+                return;
+              }
+
+              return embedded.setAccessToken(fresh);
+            })
+            .catch((err: unknown) => {
+              onErrorRef.current(err instanceof Error ? err : new Error(String(err)));
+            });
+        }, TOKEN_REFRESH_INTERVAL_MS);
       } catch (err) {
         if (!cancelled) {
           onErrorRef.current(err instanceof Error ? err : new Error(String(err)));
@@ -143,6 +170,11 @@ export default function ReportEmbed({ report, pageName, onPagesReady, onError }:
 
     return () => {
       cancelled = true;
+
+      if (refreshTimer !== null) {
+        window.clearInterval(refreshTimer);
+      }
+
       powerbi.reset(container);
       embeddedRef.current = null;
     };

@@ -14,6 +14,9 @@ backups
 dist-ssr
 *.local
 
+# Project uses npm; the stale Bun lockfile would drift.
+bun.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
