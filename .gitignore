@@ -27,3 +27,9 @@ bun.lock
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets — never commit (SEC-8587)
+.env
+.env.*
+!.env.example
+*.pem
